@@ -1,16 +1,36 @@
-### Hi there 👋
-
-<!--
-**Astro-naut/Astro-naut** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Departmental Store Management System</title>
+        <style>
+            body {
+                background-color:rgb(237, 230, 237);
+            }
+            #how-to-use {
+                color:rgb(172, 10, 204);
+            }
+            .about-us-info {
+                background-color:rgb(245, 210, 245);
+            }
+        </style>
+    </head>
+    <body>
+    <h1>Welcome to D.S.M.S</h1>
+    <h2> About Us:
+        
+    </h2>
+    <p>- We are here to provide a solutions for all of your problems related to managing your store's database system.     <br>
+        - We have <em>free and well protected </em >database managment system.
+        <br>- We have a well structured way to answer all of your queries.<br>- With a scrupulous and user friendly interface.
+            <br><br><Strong>START WORKING WITH US TODAY</strong> !
+    </p>
+    <img src="https://cdn.kastatic.org/third_party/javascript-khansrc/live-editor/build/images/landscapes/beach-sunset.png" alt=" Life after using D.S.M.S becomes easier." width="565">
+    <h2 id="how-to-use">How to use:</h2>
+    <ul>
+    <li class="about-us-info">Click on the <em>"Store My Database"</em> option.</li>
+    <li>Login with your ID.</li>
+    <li class="about-us-info">Start storing your now.</li>
+    </ul> 
+    </body>
+</html>
