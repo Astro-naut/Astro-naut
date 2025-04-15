@@ -1,9 +1,4 @@
-### Hi there 👋
-
-<
-**Astro-naut/Astro-naut** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
+###HELLO WORLD! <Insert Whatever LAnguage u like>
 
 - 🔭 I am currently working on so many things, I cant even keep a count of, afterall I am an engineering major and have a never ending to do list because of the same.
 - Let's list some of them shall we?
