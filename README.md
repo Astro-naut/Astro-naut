@@ -1,4 +1,4 @@
-### HELLUU WORLD!!!!!
+### HELLOO WORLD!!!!!
 
 🔭 I am currently working on so many things, I cant even keep a count of, afterall I am an engineering major and have a never ending to do list because of the same.
 Let's list some of them shall we?
