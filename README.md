@@ -8,4 +8,4 @@
 
 - Phew! Now thats alot of information about me, I wanna hear some about you...
   
-- 📫 Let's connect : Linkedin : https://www.linkedin.com/in/amrita-shrivastava-967a28202/ 
+- 📫 Let's connect : Linkedin : [LinkedIn Profile](https://www.linkedin.com/in/amrita-shrivastava-967a28202/)
