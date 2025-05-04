@@ -1,7 +1,7 @@
 ### HELLOO WORLD!!!!!
 
 🔭I’m currently working on so many things, I’ve lost count. After all, being an engineering major comes with a never-ending to-do list. Let’s list some of them, shall we?
-- First off, my DevSecOps internship@Validus Capital, where I’ve been working on cloud security, learning new tools, learning to work with AI in security and just genuinely enjoying the experience.
+- First off, my DevSecOps internship@Validus, where I’ve been working on cloud security, learning new tools, learning to work with AI in security and just genuinely enjoying the experience.
 - Secondly, I am also an avid learner of Full Stack Development and love the idea of expressing myself in this sort of public digital scrapbook - we all know as the internet.
 - Here comes the part where I say, 'I love solving problems' but honestly, I really do, it’s been a passion of mine since childhood. I’m just getting started on my Data Structures and Algorithms journey, but I’m excited to dive in and I’ll keep you posted!
 - I also hold numerous leadership roles such as President of the NSS, along with being the Class President, three years running, and a member of my college tech society.
