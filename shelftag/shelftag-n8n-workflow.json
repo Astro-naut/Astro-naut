@@ -1,0 +1,205 @@
+{
+  "name": "ShelfTag — Library Manager",
+  "nodes": [
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "shelftag-add-book",
+        "responseMode": "onReceived",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Check Duplicate ISBN",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [500, 300],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Library",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "ISBN",
+              "lookupValue": "={{ $('Webhook').first().json.body.isbn }}"
+            }
+          ]
+        },
+        "options": {
+          "returnAllMatches": true
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets — ShelfTag"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Is Duplicate?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [760, 300],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ $json.ISBN }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Add Book to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1020, 420],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Library",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ISBN":          "={{ $('Webhook').first().json.body.isbn }}",
+            "Title":         "={{ $('Webhook').first().json.body.title }}",
+            "Author":        "={{ $('Webhook').first().json.body.author }}",
+            "Publisher":     "={{ $('Webhook').first().json.body.publisher }}",
+            "Year":          "={{ $('Webhook').first().json.body.publishedYear }}",
+            "Pages":         "={{ $('Webhook').first().json.body.pageCount }}",
+            "Categories":    "={{ $('Webhook').first().json.body.categories }}",
+            "Language":      "={{ $('Webhook').first().json.body.language }}",
+            "Description":   "={{ $('Webhook').first().json.body.description }}",
+            "Cover URL":     "={{ $('Webhook').first().json.body.cover }}",
+            "Date Added":    "={{ $('Webhook').first().json.body.dateAdded }}",
+            "My Rating":     "",
+            "Notes":         ""
+          },
+          "schema": [],
+          "matchingColumns": [],
+          "ignoreIfEmpty": false
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets — ShelfTag"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Already in Library",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1020, 180],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Duplicate ISBN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Duplicate ISBN": {
+      "main": [
+        [
+          {
+            "node": "Is Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Already in Library",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Book to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "shelftag-library-workflow-001",
+  "meta": {
+    "instanceId": "local",
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "versionId": "a1b2c3d4-ffff-4000-8000-ffffffffffff",
+  "triggerCount": 0,
+  "tags": [
+    {
+      "createdAt": "2026-03-24T00:00:00.000Z",
+      "updatedAt": "2026-03-24T00:00:00.000Z",
+      "id": "tag-shelftag",
+      "name": "shelftag"
+    }
+  ]
+}

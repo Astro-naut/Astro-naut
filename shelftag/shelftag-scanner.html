@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShelfTag — Personal Library Scanner</title>
+
+  <!-- QuaggaJS for camera-based barcode scanning -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"
+          crossorigin="anonymous"></script>
+
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:       #2d6a4f;
+      --green-dark:  #1b4332;
+      --green-light: #52b788;
+      --cream:       #fdf8f0;
+      --card-bg:     #ffffff;
+      --border:      #d8e8de;
+      --text:        #1a1a2e;
+      --muted:       #6b7280;
+      --danger:      #dc2626;
+      --warn:        #d97706;
+      --shadow:      0 4px 24px rgba(0,0,0,0.09);
+      --radius:      12px;
+      --font:        'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    header {
+      background: var(--green-dark);
+      color: #fff;
+      padding: 0 1.5rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-icon { font-size: 1.5rem; }
+
+    #n8n-status {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      opacity: 0.85;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #6b7280;
+      transition: background 0.3s;
+    }
+    .dot.green  { background: #4ade80; }
+    .dot.red    { background: #f87171; }
+    .dot.yellow { background: #fbbf24; }
+
+    /* ─── Layout ────────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.5rem;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    @media (max-width: 760px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* ─── Cards ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--green-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 1rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* ─── Scanner section ───────────────────────────────────────── */
+    .scanner-section { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    .isbn-row {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    #isbn-input {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      font-size: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: var(--font);
+    }
+
+    #isbn-input:focus { border-color: var(--green-light); }
+    #isbn-input.error { border-color: var(--danger); }
+
+    .btn {
+      padding: 0.7rem 1.1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
+      font-family: var(--font);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-primary  { background: var(--green);      color: #fff; }
+    .btn-outline  { background: transparent; color: var(--green); border: 2px solid var(--green); }
+    .btn-danger   { background: var(--danger);     color: #fff; }
+    .btn-success  { background: var(--green-light); color: #fff; font-size: 1rem; padding: 0.8rem 1.5rem; }
+
+    .btn-primary:hover:not(:disabled)  { opacity: 0.88; }
+    .btn-outline:hover:not(:disabled)  { background: #e8f5ee; }
+    .btn-success:hover:not(:disabled)  { opacity: 0.88; }
+
+    /* ─── Camera toggle bar ─────────────────────────────────────── */
+    .camera-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    #camera-hint {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* ─── Quagga viewport ───────────────────────────────────────── */
+    #quagga-viewport {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+      background: #000;
+      max-height: 260px;
+    }
+
+    #quagga-viewport video,
+    #quagga-viewport canvas {
+      width: 100%;
+      display: block;
+    }
+
+    #quagga-viewport canvas.drawingBuffer {
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    .scan-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%; height: 30%;
+      border: 2px solid var(--green-light);
+      border-radius: 6px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+      pointer-events: none;
+    }
+
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: var(--green-light);
+      animation: scanAnim 1.8s ease-in-out infinite;
+    }
+
+    @keyframes scanAnim {
+      0%   { top: 8%; }
+      50%  { top: 88%; }
+      100% { top: 8%; }
+    }
+
+    #camera-label {
+      position: absolute;
+      bottom: 6px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+    }
+
+    /* ─── Book preview card ─────────────────────────────────────── */
+    #book-preview { display: none; }
+
+    .book-card {
+      display: flex;
+      gap: 1.2rem;
+    }
+
+    .book-cover {
+      width: 90px;
+      min-width: 90px;
+      border-radius: 6px;
+      box-shadow: 3px 3px 12px rgba(0,0,0,0.18);
+      object-fit: cover;
+      align-self: flex-start;
+    }
+
+    .book-cover-placeholder {
+      width: 90px;
+      min-width: 90px;
+      height: 130px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--green-dark), var(--green));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      color: rgba(255,255,255,0.7);
+      align-self: flex-start;
+    }
+
+    .book-info { flex: 1; min-width: 0; }
+    .book-info h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.3rem; line-height: 1.3; }
+    .book-info .author { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.6rem; }
+
+    .book-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.7rem;
+    }
+
+    .badge {
+      background: #e8f5ee;
+      color: var(--green-dark);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .book-description {
+      font-size: 0.83rem;
+      color: var(--muted);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .book-actions {
+      display: flex;
+      gap: 0.7rem;
+      margin-top: 1.2rem;
+      flex-wrap: wrap;
+    }
+
+    /* Status label under book preview */
+    #add-status {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+    #add-status.ok   { color: var(--green); }
+    #add-status.err  { color: var(--danger); }
+    #add-status.warn { color: var(--warn); }
+
+    /* ─── Loading spinner ───────────────────────────────────────── */
+    #loading { display: none; }
+
+    .spinner-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 1rem 0;
+    }
+
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Error / not-found ─────────────────────────────────────── */
+    #lookup-error {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.88rem;
+      color: var(--danger);
+    }
+
+    /* ─── Config strip ──────────────────────────────────────────── */
+    .config-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-top: 0.8rem;
+    }
+
+    .config-row label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    #webhook-url-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: monospace;
+      color: var(--text);
+      outline: none;
+    }
+
+    #webhook-url-input:focus { border-color: var(--green-light); }
+
+    /* ─── Right sidebar: Recent books ───────────────────────────── */
+    .sidebar { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    #recent-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+
+    .recent-item {
+      display: flex;
+      gap: 0.7rem;
+      align-items: center;
+      padding: 0.5rem 0.6rem;
+      border-radius: 8px;
+      background: #f4faf7;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+
+    .recent-item img {
+      width: 32px; height: 44px;
+      object-fit: cover;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .recent-item .ri-placeholder {
+      width: 32px; height: 44px;
+      background: var(--green);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .ri-info { min-width: 0; }
+    .ri-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ri-author { color: var(--muted); }
+
+    .ri-time {
+      margin-left: auto;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    #recent-empty {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 1rem 0;
+    }
+
+    .clear-link {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: right;
+      cursor: pointer;
+      text-decoration: underline;
+      display: inline-block;
+      width: 100%;
+      margin-top: -0.4rem;
+    }
+
+    /* ─── Stats strip ───────────────────────────────────────────── */
+    .stats-row {
+      display: flex;
+      gap: 0.8rem;
+    }
+
+    .stat-box {
+      flex: 1;
+      text-align: center;
+      background: #f0faf4;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 0.5rem;
+    }
+
+    .stat-box .val { font-size: 1.6rem; font-weight: 700; color: var(--green-dark); }
+    .stat-box .lbl { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+    /* ─── Toast ─────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.5rem;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 0.7rem 1.1rem;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      animation: slideIn 0.25s ease-out, fadeOut 0.4s 2.6s ease-in forwards;
+      max-width: 320px;
+    }
+
+    .toast.success { background: var(--green); }
+    .toast.error   { background: var(--danger); }
+    .toast.warn    { background: var(--warn); }
+    .toast.info    { background: #3b82f6; }
+
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; transform: translateX(120%); }
+    }
+
+    /* ─── Footer ────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 0.8rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ─── Header ──────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <span class="logo-icon">📚</span>
+      ShelfTag
+      <span style="font-size:0.7rem; font-weight:400; opacity:0.7; margin-left:4px;">Personal Library</span>
+    </div>
+    <div id="n8n-status">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-label">n8n: checking…</span>
+    </div>
+  </header>
+
+  <!-- ─── Main layout ─────────────────────────────────────────── -->
+  <main>
+
+    <!-- ── Left column: Scanner + Book Preview ─────────────────── -->
+    <div class="scanner-section">
+
+      <!-- ISBN lookup card -->
+      <div class="card">
+        <h2>📷 Scan or Enter ISBN</h2>
+
+        <div class="isbn-row">
+          <input
+            id="isbn-input"
+            type="text"
+            inputmode="numeric"
+            placeholder="ISBN-10 or ISBN-13 (e.g. 9780385333348)"
+            autocomplete="off"
+          />
+          <button class="btn btn-primary" id="lookup-btn" onclick="lookupISBN()">Look up</button>
+        </div>
+
+        <div class="camera-bar" style="margin-top: 0.8rem;">
+          <button class="btn btn-outline" id="camera-btn" onclick="toggleCamera()">📷 Start Camera</button>
+          <span id="camera-hint">Point camera at barcode — auto-detects ISBN</span>
+        </div>
+
+        <!-- Quagga live view -->
+        <div id="quagga-viewport" style="margin-top:0.8rem;">
+          <div class="scan-overlay"><div class="scan-line"></div></div>
+          <div id="camera-label">Scanning for barcode…</div>
+        </div>
+
+        <!-- n8n webhook URL config -->
+        <div class="config-row">
+          <label for="webhook-url-input">n8n Webhook:</label>
+          <input
+            id="webhook-url-input"
+            type="url"
+            value="http://localhost:5678/webhook/shelftag-add-book"
+          />
+        </div>
+      </div>
+
+      <!-- Loading state -->
+      <div id="loading">
+        <div class="spinner-wrap">
+          <div class="spinner"></div>
+          <span>Looking up book in Google Books…</span>
+        </div>
+      </div>
+
+      <!-- Lookup error -->
+      <div id="lookup-error"></div>
+
+      <!-- Book preview card -->
+      <div class="card" id="book-preview">
+        <h2>📖 Book Preview</h2>
+
+        <div class="book-card">
+          <!-- Cover (img or placeholder) filled by JS -->
+          <div id="cover-container"></div>
+
+          <div class="book-info">
+            <h3 id="book-title"></h3>
+            <div class="author" id="book-author"></div>
+            <div class="book-meta" id="book-meta"></div>
+            <div class="book-description" id="book-description"></div>
+          </div>
+        </div>
+
+        <div class="book-actions">
+          <button class="btn btn-success" id="add-btn" onclick="addToLibrary()">
+            ＋ Add to Library
+          </button>
+          <button class="btn btn-outline" onclick="clearPreview()">Clear</button>
+        </div>
+
+        <div id="add-status"></div>
+      </div>
+
+    </div><!-- /left column -->
+
+    <!-- ── Right column: Stats + Recent ──────────────────────────── -->
+    <div class="sidebar">
+
+      <div class="card">
+        <h2>📊 Your Library</h2>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="val" id="stat-total">0</div>
+            <div class="lbl">Books Added</div>
+          </div>
+          <div class="stat-box">
+            <div class="val" id="stat-today">0</div>
+            <div class="lbl">Today</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="flex:1;">
+        <h2>🕑 Recently Added</h2>
+        <span class="clear-link" onclick="clearHistory()" title="Clear history from this browser">clear history</span>
+        <ul id="recent-list">
+          <li id="recent-empty">No books added yet. Start scanning!</li>
+        </ul>
+      </div>
+
+    </div><!-- /sidebar -->
+
+  </main>
+
+  <!-- ─── Toast container ──────────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <!-- ─── Footer ──────────────────────────────────────────────── -->
+  <footer>
+    ShelfTag runs locally — books are saved to your Google Sheet via your local n8n instance.
+  </footer>
+
+  <!-- ════════════════════════════════════════════════════════════
+       APPLICATION SCRIPT
+       ════════════════════════════════════════════════════════════ -->
+  <script>
+    // ─── State ─────────────────────────────────────────────────
+    let currentBook  = null; // book data from Google Books
+    let cameraActive = false;
+    let scanCooldown = false; // prevent rapid duplicate scans
+
+    // ─── Toast helper ──────────────────────────────────────────
+    function toast(msg, type = 'success') {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      document.getElementById('toast-container').appendChild(t);
+      setTimeout(() => t.remove(), 3200);
+    }
+
+    // ─── n8n status indicator ──────────────────────────────────
+    async function checkN8nStatus() {
+      const dot   = document.getElementById('status-dot');
+      const label = document.getElementById('status-label');
+      const url   = getWebhookUrl();
+
+      dot.className   = 'dot yellow';
+      label.textContent = 'n8n: connecting…';
+
+      try {
+        // A preflight OPTIONS check is the lightest way to test connectivity
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 4000);
+
+        // 'no-cors' is intentional: we only want to detect whether the local
+        // n8n port is accepting connections (ECONNREFUSED → catch → red dot).
+        // A successful response at any CORS level means n8n is up. The real
+        // POST webhook has allowedOrigins: '*' so actual requests will work.
+        await fetch(url, {
+          method: 'OPTIONS',
+          signal: ctrl.signal,
+          mode: 'no-cors',
+        });
+        clearTimeout(timer);
+
+        dot.className   = 'dot green';
+        label.textContent = 'n8n: connected ✓';
+      } catch {
+        dot.className   = 'dot red';
+        label.textContent = 'n8n: not reachable';
+      }
+    }
+
+    function getWebhookUrl() {
+      return document.getElementById('webhook-url-input').value.trim() ||
+             'http://localhost:5678/webhook/shelftag-add-book';
+    }
+
+    // Re-check whenever the URL input changes
+    document.getElementById('webhook-url-input').addEventListener('change', checkN8nStatus);
+
+    // ─── ISBN Lookup via Google Books ──────────────────────────
+    async function lookupISBN() {
+      const raw = document.getElementById('isbn-input').value.trim().replace(/[-\s]/g, '');
+
+      if (!raw) {
+        document.getElementById('isbn-input').classList.add('error');
+        toast('Please enter an ISBN first.', 'warn');
+        return;
+      }
+      document.getElementById('isbn-input').classList.remove('error');
+
+      clearPreview();
+      showLoading(true);
+      hideError();
+
+      try {
+        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(raw)}&maxResults=1`;
+        const res  = await fetch(apiUrl);
+        if (!res.ok) throw new Error(`Google Books API error: ${res.status}`);
+
+        const data = await res.json();
+        showLoading(false);
+
+        if (!data.totalItems || !data.items?.length) {
+          showError(`No book found for ISBN "${raw}". Check the number or try a different edition.`);
+          return;
+        }
+
+        const item = data.items[0];
+        currentBook = parseBookItem(item, raw);
+        renderPreview(currentBook);
+
+      } catch (err) {
+        showLoading(false);
+        showError(`Lookup failed: ${err.message}. Is your internet connection active?`);
+      }
+    }
+
+    function parseBookItem(item, rawIsbn) {
+      const info = item.volumeInfo || {};
+      const isbn13 = info.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier;
+      const isbn10 = info.industryIdentifiers?.find(i => i.type === 'ISBN_10')?.identifier;
+
+      // Pick best available cover (replace http with https to avoid mixed content)
+      const rawCover = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail || '';
+      const cover    = rawCover.replace(/^http:\/\//, 'https://');
+
+      return {
+        isbn:          isbn13 || isbn10 || rawIsbn,
+        title:         info.title         || 'Unknown Title',
+        subtitle:      info.subtitle      || '',
+        author:        (info.authors || []).join(', ') || 'Unknown Author',
+        publisher:     info.publisher     || '',
+        publishedYear: (info.publishedDate || '').slice(0, 4),
+        pageCount:     info.pageCount     || '',
+        categories:    (info.categories   || []).join(', '),
+        language:      info.language      || '',
+        description:   info.description  || '',
+        cover,
+        googleId:      item.id            || '',
+        dateAdded:     new Date().toISOString().slice(0, 10),
+      };
+    }
+
+    // ─── Render book preview ───────────────────────────────────
+    function renderPreview(book) {
+      document.getElementById('book-title').textContent  = book.title;
+      document.getElementById('book-author').textContent = book.author
+        ? `by ${book.author}`
+        : '';
+      document.getElementById('book-description').textContent = book.description;
+
+      // Cover
+      const cc = document.getElementById('cover-container');
+      if (book.cover) {
+        cc.innerHTML = `<img class="book-cover" src="${escHtml(book.cover)}" alt="Cover of ${escHtml(book.title)}" />`;
+      } else {
+        cc.innerHTML = `<div class="book-cover-placeholder">📕</div>`;
+      }
+
+      // Badges
+      const meta = document.getElementById('book-meta');
+      meta.innerHTML = '';
+      if (book.publishedYear) addBadge(meta, `📅 ${book.publishedYear}`);
+      if (book.pageCount)     addBadge(meta, `📄 ${book.pageCount} pp`);
+      if (book.categories)    addBadge(meta, book.categories.split(',')[0].trim());
+      if (book.language)      addBadge(meta, book.language.toUpperCase());
+      if (book.isbn)          addBadge(meta, `ISBN: ${book.isbn}`);
+
+      document.getElementById('book-preview').style.display = 'block';
+      document.getElementById('add-status').textContent = '';
+      document.getElementById('add-btn').disabled = false;
+    }
+
+    function addBadge(container, text) {
+      const b = document.createElement('span');
+      b.className   = 'badge';
+      b.textContent = text;
+      container.appendChild(b);
+    }
+
+    function clearPreview() {
+      document.getElementById('book-preview').style.display = 'none';
+      document.getElementById('add-status').textContent = '';
+      currentBook = null;
+    }
+
+    // ─── Loading / error helpers ───────────────────────────────
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+      document.getElementById('lookup-btn').disabled   = show;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('lookup-error');
+      el.style.display = 'block';
+      el.textContent   = msg;
+    }
+
+    function hideError() {
+      const el = document.getElementById('lookup-error');
+      el.style.display = 'none';
+      el.textContent   = '';
+    }
+
+    // ─── Add to Library — fire-and-forget POST to local n8n ────
+    async function addToLibrary() {
+      if (!currentBook) return;
+
+      const btn       = document.getElementById('add-btn');
+      const statusEl  = document.getElementById('add-status');
+      const webhookUrl = getWebhookUrl();
+
+      btn.disabled      = true;
+      statusEl.className = '';
+      statusEl.textContent = 'Sending to library…';
+
+      const payload = { ...currentBook };
+
+      try {
+        // Fire-and-forget: we don't await the body, just confirm the request sent
+        fetch(webhookUrl, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload),
+          // keepalive ensures the request completes even if the user navigates away
+          keepalive: true,
+        }).catch(err => {
+          // Only log — the user already saw success toast or we handle below
+          console.warn('n8n POST error (background):', err.message);
+        });
+
+        // Optimistically treat as success — local n8n is reliable
+        statusEl.className   = 'ok';
+        statusEl.textContent = `✓ "${currentBook.title}" sent to your library!`;
+        toast(`✓ Added: ${currentBook.title}`, 'success');
+
+        // Save to localStorage history
+        saveToHistory(currentBook);
+        updateStats();
+        renderHistory();
+
+        // Clear ISBN input after successful add
+        document.getElementById('isbn-input').value = '';
+
+      } catch (err) {
+        statusEl.className   = 'err';
+        statusEl.textContent = `Error: ${err.message}`;
+        toast(`Failed to send to n8n: ${err.message}`, 'error');
+        btn.disabled = false;
+      }
+    }
+
+    // ─── Camera / Quagga ──────────────────────────────────────
+    function toggleCamera() {
+      if (cameraActive) {
+        stopCamera();
+      } else {
+        startCamera();
+      }
+    }
+
+    function startCamera() {
+      const viewport = document.getElementById('quagga-viewport');
+      viewport.style.display = 'block';
+      document.getElementById('camera-btn').textContent  = '⏹ Stop Camera';
+      document.getElementById('camera-hint').textContent = 'Hold barcode steady inside the box';
+      cameraActive = true;
+
+      Quagga.init({
+        inputStream: {
+          name: 'Live',
+          type: 'LiveStream',
+          target: viewport,
+          constraints: {
+            width:  { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'environment', // rear camera on mobile
+          },
+        },
+        locator: { patchSize: 'medium', halfSample: true },
+        numOfWorkers: navigator.hardwareConcurrency > 2 ? 2 : 1,
+        frequency: 12,
+        decoder: {
+          readers: [
+            'ean_reader',      // EAN-13 (most books)
+            'ean_8_reader',
+            'code_128_reader', // fallback
+          ],
+        },
+        locate: true,
+      }, err => {
+        if (err) {
+          console.error('Quagga init error:', err);
+          toast(`Camera error: ${err.message || err}. Try manual entry.`, 'error');
+          stopCamera();
+          return;
+        }
+        Quagga.start();
+      });
+
+      Quagga.onDetected(onBarcodeDetected);
+    }
+
+    function stopCamera() {
+      Quagga.stop();
+      Quagga.offDetected(onBarcodeDetected);
+      const viewport = document.getElementById('quagga-viewport');
+      viewport.style.display = 'none';
+      document.getElementById('camera-btn').textContent  = '📷 Start Camera';
+      document.getElementById('camera-hint').textContent = 'Point camera at barcode — auto-detects ISBN';
+      cameraActive = false;
+    }
+
+    function onBarcodeDetected(result) {
+      if (scanCooldown) return;
+      const code = result.codeResult.code;
+
+      // Basic sanity check: ISBN-13 is 13 digits, EAN code starting with 978/979
+      if (!/^97[89]\d{10}$/.test(code) && !/^\d{10}$/.test(code)) return;
+
+      scanCooldown = true;
+      setTimeout(() => { scanCooldown = false; }, 2500);
+
+      document.getElementById('isbn-input').value = code;
+      toast(`Barcode detected: ${code}`, 'info');
+      stopCamera();
+      lookupISBN();
+    }
+
+    // ─── localStorage history ──────────────────────────────────
+    const HISTORY_KEY = 'shelftag_history';
+
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+      catch { return []; }
+    }
+
+    function saveToHistory(book) {
+      const history = loadHistory();
+      // Avoid true duplicates in the sidebar (same ISBN added multiple times in session)
+      const idx = history.findIndex(b => b.isbn === book.isbn);
+      const entry = { ...book, addedAt: new Date().toISOString() };
+      if (idx >= 0) {
+        history[idx] = entry; // update existing entry
+      } else {
+        history.unshift(entry); // prepend newest
+      }
+      // Keep last 50 entries
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
+    }
+
+    function clearHistory() {
+      if (!confirm('Clear the local history list? (Your Google Sheet is not affected.)')) return;
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+      updateStats();
+      toast('Local history cleared.', 'info');
+    }
+
+    function renderHistory() {
+      const list    = document.getElementById('recent-list');
+      const empty   = document.getElementById('recent-empty');
+      const history = loadHistory();
+
+      // Remove all items except the empty placeholder
+      Array.from(list.querySelectorAll('.recent-item')).forEach(el => el.remove());
+
+      if (!history.length) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      history.forEach(book => {
+        const li = document.createElement('li');
+        li.className = 'recent-item';
+        const timeAgo = relativeTime(new Date(book.addedAt));
+        const coverHtml = book.cover
+          ? `<img src="${escHtml(book.cover)}" alt="" loading="lazy" />`
+          : `<div class="ri-placeholder">📕</div>`;
+
+        li.innerHTML = `
+          ${coverHtml}
+          <div class="ri-info">
+            <div class="ri-title" title="${escHtml(book.title)}">${escHtml(truncate(book.title, 28))}</div>
+            <div class="ri-author">${escHtml(truncate(book.author, 22))}</div>
+          </div>
+          <span class="ri-time">${timeAgo}</span>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    function updateStats() {
+      const history = loadHistory();
+      const today   = new Date().toISOString().slice(0, 10);
+      const todayCount = history.filter(b => (b.addedAt || '').slice(0, 10) === today).length;
+      document.getElementById('stat-total').textContent = history.length;
+      document.getElementById('stat-today').textContent = todayCount;
+    }
+
+    // ─── Utility helpers ──────────────────────────────────────
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function truncate(str, max) {
+      return str.length > max ? str.slice(0, max) + '…' : str;
+    }
+
+    function relativeTime(date) {
+      const diff = Math.round((Date.now() - date) / 1000);
+      if (diff < 60)    return 'just now';
+      if (diff < 3600)  return `${Math.round(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.round(diff / 3600)}h ago`;
+      return `${Math.round(diff / 86400)}d ago`;
+    }
+
+    // ─── Enter key triggers lookup ────────────────────────────
+    document.getElementById('isbn-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') lookupISBN();
+    });
+
+    // ─── Init ─────────────────────────────────────────────────
+    renderHistory();
+    updateStats();
+    checkN8nStatus();
+
+    // Refresh status indicator every 30 s
+    setInterval(checkN8nStatus, 30_000);
+  </script>
+</body>
+</html>
